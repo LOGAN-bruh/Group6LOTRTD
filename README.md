@@ -1,15 +1,15 @@
-# Group6TDandMineSweeper
+# Group 6 TD and MineSweeper
 ## LOTR Tower Defense
 LOTR Tower Defense is a 360-degree survival tower defense game where players must protect a central stronghold from relentless waves of enemies attacking from all directions. Strategically deploy iconic heroes and diverse regional units to hold the line against a multi-front siege, balancing your perimeter to ensure no foe breaches the heart of your defenses. All with the theme of Lord of the Rings where you are playing as the Eye of Sauron.
 
-##Gameplay Of "The Tower" which is our inspiration for our game
-###Gamplay
+## Gameplay Of "The Tower" which is our inspiration for our game
+### Gamplay
 ![GameplayOf"TheTower"](https://github.com/LOGAN-bruh/Group6TDandMineSweeper/blob/main/LOTRTowerDefense/design/Mockups/Gameplay.png)
-###Gamplay
+### Gamplay
 ![GameplayOf"TheTower"](https://github.com/LOGAN-bruh/Group6TDandMineSweeper/blob/main/LOTRTowerDefense/design/Mockups/MoreGameplay.png)
-###Gamplay
+### Gamplay
 ![GameplayOf"TheTower"](https://github.com/LOGAN-bruh/Group6TDandMineSweeper/blob/main/LOTRTowerDefense/design/Mockups/MoreMoreGameplay.png)
-###Settings
+### Settings
 ![SettingsOf"TheTower"](https://github.com/LOGAN-bruh/Group6TDandMineSweeper/blob/main/LOTRTowerDefense/design/Mockups/Settings.png)
 
 ## MineSweeper
