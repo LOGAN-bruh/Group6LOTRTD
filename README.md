@@ -20,7 +20,7 @@ LOTR Tower Defense is a 360-degree survival tower defense game where players mus
 ### Game Over
 ![MockupForGameOver](https://github.com/LOGAN-bruh/Group6TDandMineSweeper/blob/main/LOTRTowerDefense/design/Mockups/GameOverLOTRTD.drawio.png)
 ### UML
-![LOTRTowerDefenseUML](https://github.com/LOGAN-bruh/Group6TDandMineSweeper/blob/main/LOTRTowerDefense/design/Mockups/UMLforLOTRtowerdefense.drawio.png)
+![LOTRTowerDefenseUML](https://github.com/LOGAN-bruh/Group6TDandMineSweeper/blob/main/LOTRTowerDefense/design/Mockups/UMLforTD.drawio.png)
 
 ## MineSweeper
 MineSweeper is a classic logic-puzzle game where players must clear a rectangular board containing hidden "mines" without detonating any of them. Using numerical clues that reveal the number of neighboring mines, you must use deduction and strategy to flag hazards and safely uncover every empty tile to achieve victory. You play it as a character that you design yourslelf with options for color and etc.
