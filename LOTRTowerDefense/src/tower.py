@@ -2,13 +2,14 @@ import math
 from bullet import Bullet   # only if Bullet is in separate file
 
 class Tower:
-    def __init__(self, x, y, tower_type=1):
+    def __init__(self, x, y, tower_type=1,image=None):
         self.x = x
         self.y = y
         self.range = 150
         self.cooldown = 0
         self.tower_type = tower_type
-
+        self.image = image
+        
         if self.tower_type == 1:
             self.color = (50, 50, 200)
             self.damage = 50
@@ -19,8 +20,12 @@ class Tower:
             self.cost = 100
 
     def draw(self, win):
-        import pygame
-        pygame.draw.circle(win, self.color, (self.x, self.y), 15)
+        if self.image:
+            rect = self.image.get_rect(center=(self.x, self.y))
+            win.blit(self.image, rect)
+        else:
+            import pygame
+            pygame.draw.circle(win, (50, 50, 200), (self.x, self.y), 15)
 
     def shoot(self, enemies, bullets):
         if self.cooldown > 0:
