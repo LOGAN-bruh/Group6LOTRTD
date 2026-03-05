@@ -2,13 +2,14 @@ import math
 from bullet import Bullet   # only if Bullet is in separate file
 
 class Tower:
-    def __init__(self, x, y, tower_type=1,image=None):
+    def __init__(self, x, y, tower_type=1, image=None, bullet_image=None):
         self.x = x
         self.y = y
         self.range = 150
         self.cooldown = 0
         self.tower_type = tower_type
         self.image = image
+        self.bullet_image = bullet_image
         
         if self.tower_type == 1:
             self.color = (50, 50, 200)
@@ -36,7 +37,7 @@ class Tower:
             distance = math.hypot(enemy.x - self.x, enemy.y - self.y)
             if distance <= self.range:
                 bullets.append(
-                    Bullet(self.x, self.y, enemy, self.damage, self.color)
+                    Bullet(self.x+25, self.y+35, enemy, self.damage, self.bullet_image)
                 )
                 self.cooldown = 30
                 break
