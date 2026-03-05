@@ -1,13 +1,14 @@
 import math
 import pygame
+
 class Bullet:
-    def __init__(self, x, y, target, damage, color):
+    def __init__(self, x, y, target, damage, image):
         self.x = x
         self.y = y
         self.target = target
         self.speed = 5
         self.damage = damage
-        self.color = color
+        self.image = image
 
     def move(self):
         if self.target.health <= 0:
@@ -30,4 +31,5 @@ class Bullet:
         return False
 
     def draw(self, win):
-        pygame.draw.circle(win, self.color, (int(self.x), int(self.y)), 5)
+        rect = self.image.get_rect(center=(int(self.x), int(self.y)))
+        win.blit(self.image, rect)
