@@ -6,9 +6,13 @@ class Enemy:
     def __init__(self, width, height, center, enemy_type_list, health_multiplier, speed_multiplier):
         enemy_type = random.choice(enemy_type_list)
 
+        # ADD THIS LINE:
+        self.name = enemy_type["name"] 
+
         self.frames = enemy_type["frames"]
         self.frame_index = 0
         self.image = self.frames[self.frame_index]
+        # ... rest of your code ...
 
         self.width = width
         self.height = height
@@ -45,8 +49,35 @@ class Enemy:
         return distance <= base_radius
 
     def draw(self, win):
-        rect = self.image.get_rect(center=(self.x, self.y))
-        win.blit(self.image, rect)
+        # 1. Determine if we need to flip the image
+        flip_x = False
+        
+        # Get the enemy name from the type list (assumes you saved self.name in __init__)
+        if self.name in ["Mage", "Knight"]:
+            if self.x > self.center[0]:  # On the right side
+                flip_x = True
+                
+        elif self.name == "Hobbit":
+            if self.x < self.center[0]:  # On the left side
+                flip_x = True
+
+        # 2. Create the (potentially) flipped image
+        # pygame.transform.flip(surface, flip_x, flip_y)
+        draw_image = pygame.transform.flip(self.image, flip_x, False)
+
+        # 3. Handle the Y-offset for the Hobbit frame 2 if needed
+        draw_y = self.y
+        draw_x = self.x
+        if self.name == "Hobbit" and self.frame_index == 1:
+            draw_y -= 3.5
+            draw_x -= -15
+        if self.name == "Knight" and self.frame_index == 1:
+            draw_y -= -10
+            draw_x -= -15
+
+        # 4. Draw to the screen
+        rect = draw_image.get_rect(center=(self.x, draw_y))
+        win.blit(draw_image, rect)
 
         # -------- HEALTH BAR --------
         bar_width = 40
