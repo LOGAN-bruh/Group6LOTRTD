@@ -1,5 +1,3 @@
-# Yicheng Deng & Logan Bywater | 3/10/26
-
 import pygame
 import math
 import random
@@ -7,8 +5,8 @@ import time
 import os
 import json
 pygame.init()
+
 # Load Base Sprite
-#TODO: debug asset loading to handle missing files gracefully and search common directories, fix the loading for the game when I press play. Make sure it is all debugged and working smoothly
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 def asset(path):
     # Try direct path relative to this file
@@ -78,7 +76,7 @@ STAT_FONT = pygame.font.SysFont("Georgia", 20, bold=True)
 UPGRADE_FONT = pygame.font.SysFont("Georgia", 18)
 WIDTH, HEIGHT = 800, 800
 WIN = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("360 Defense")
+pygame.display.set_caption("Lord of the Rings Tower Defense | 2026")
 
 CLOCK = pygame.time.Clock()
 FPS = 60
@@ -94,13 +92,17 @@ GRASS1 = (86, 153, 90)  # #56995a
 GRASS2 = GREEN          # #48694a
 TILE_SIZE = 32
 BLACK = (0, 0, 0)
-BASE_RADIUS = 60
+
+# Scale everything down by 50% for a tighter look
+SIZE_SCALE = 0.65
+
+BASE_RADIUS = int(60 * SIZE_SCALE)
 BASE_IMAGE = load_image("towerlvl1.png", (BASE_RADIUS * 2, BASE_RADIUS * 2))
-CANNON_IMAGE = load_image("lvl1TowerCannon.png", (80, 80))
+CANNON_IMAGE = load_image("lvl1TowerCannon.png", (int(80 * SIZE_SCALE), int(80 * SIZE_SCALE)))
 FIREBALL_IMAGE = pygame.image.load(asset("FireBall.png")).convert_alpha()
-FIREBALL_IMAGE = pygame.transform.scale(FIREBALL_IMAGE, (40, 40))
+FIREBALL_IMAGE = pygame.transform.scale(FIREBALL_IMAGE, (int(40 * SIZE_SCALE), int(40 * SIZE_SCALE)))
 BASEFIREBALL_IMAGE = pygame.image.load(asset("FireBall.png")).convert_alpha()
-BASEFIREBALL_IMAGE = pygame.transform.scale(BASEFIREBALL_IMAGE, (12, 12))
+BASEFIREBALL_IMAGE = pygame.transform.scale(BASEFIREBALL_IMAGE, (max(1, int(12 * SIZE_SCALE)), max(1, int(12 * SIZE_SCALE))))
 
 # Load all tower and base level images
 BASE_IMAGES = []
@@ -117,93 +119,83 @@ for i in range(1, 7):  # towerlvl1.png through towerlvl6.png
 for i in range(1, 4):  # lvl1TowerCannon.png through lvl3TowerCannon.png
     try:
         img = pygame.image.load(asset(f"lvl{i}TowerCannon.png")).convert_alpha()
-        img = pygame.transform.scale(img, (80, 80))
+        img = pygame.transform.scale(img, (int(80 * SIZE_SCALE), int(80 * SIZE_SCALE)))
         TOWER_IMAGES.append(img)
     except:
         TOWER_IMAGES.append(CANNON_IMAGE)  # fallback
+
 knight_frame1 = pygame.transform.scale(
-    pygame.image.load(asset("knightenemy.png")).convert_alpha(), (60, 60)
+    pygame.image.load(asset("knightenemy.png")).convert_alpha(), (int(60 * SIZE_SCALE), int(60 * SIZE_SCALE))
 )
 
 knight_frame2 = pygame.transform.scale(
-    pygame.image.load(asset("knightenemyRunning.png")).convert_alpha(), (60, 60)
+    pygame.image.load(asset("knightenemyRunning.png")).convert_alpha(), (int(60 * SIZE_SCALE), int(60 * SIZE_SCALE))
 )
 
 hobbit_frame1 = pygame.transform.scale(
-    pygame.image.load(asset("hobbitenemy.png")).convert_alpha(), (60, 60)
+    pygame.image.load(asset("hobbitenemy.png")).convert_alpha(), (int(60 * SIZE_SCALE), int(60 * SIZE_SCALE))
 )
 
 hobbit_frame2 = pygame.transform.scale(
-    pygame.image.load(asset("hobbitenemyRunning.png")).convert_alpha(), (60, 60)
+    pygame.image.load(asset("hobbitenemyRunning.png")).convert_alpha(), (int(60 * SIZE_SCALE), int(60 * SIZE_SCALE))
 )
 
 mage_frame1 = pygame.transform.scale(
-    pygame.image.load(asset("mageenemy.png")).convert_alpha(), (60, 60)
+    pygame.image.load(asset("mageenemy.png")).convert_alpha(), (int(60 * SIZE_SCALE), int(60 * SIZE_SCALE))
 )
 
 mage_frame2 = pygame.transform.scale(
-    pygame.image.load(asset("mageenemyRunning.png")).convert_alpha(), (60, 60)
+    pygame.image.load(asset("mageenemyRunning.png")).convert_alpha(), (int(60 * SIZE_SCALE), int(60 * SIZE_SCALE))
 )
 
-
-
+# Enemy definitions. Rarer enemies have higher base health and lower spawn weight.
 ENEMY_TYPES = [
     {
         "name": "Knight",
         "frames": [knight_frame1, knight_frame2],
-        "health": 200,
-        "speed": 1,
-        "reward": 50
+        "health": 300,
+        "speed": 0.5,
+        "reward": 60,
+        "base_weight": 20
     },
     {
         "name": "Hobbit",
         "frames": [hobbit_frame1, hobbit_frame2],
-        "health": 50,
-        "speed": 3,
-        "reward": 10
+        "health": 60,
+        "speed": 1.5,
+        "reward": 10,
+        "base_weight": 50
     },
     {
         "name": "Mage",
         "frames": [mage_frame1, mage_frame2],
-        "health": 150,
-        "speed": 2,
-        "reward": 30
+        "health": 220,
+        "speed": 1,
+        "reward": 40,
+        "base_weight": 30
     }
 ]
 
-# knight_enemy= pygame.transform.scale(
-#         pygame.image.load("knightenemy.png").convert_alpha(), (125, 125)
-#     )
-# hobbit_enemy= pygame.transform.scale(
-#         pygame.image.load("hobbitenemy.png").convert_alpha(), (75, 75)
-#     )
-# mage_enemy= pygame.transform.scale(
-#         pygame.image.load("mageenemy.png").convert_alpha(), (125, 125)
-#     )
+# Helper to choose enemy type using weighted probabilities that shift with difficulty
+def choose_enemy_type(difficulty_level):
+    # compute weights increasing tougher enemy probability with difficulty
+    weights = []
+    for et in ENEMY_TYPES:
+        # start with base weight then add small bonus per difficulty
+        w = et.get("base_weight", 10) + difficulty_level * (1 if et["name"] == "Knight" else (0.5 if et["name"] == "Mage" else 0.2))
+        weights.append(max(1, w))
+    # normalize and choose
+    total = sum(weights)
+    r = random.uniform(0, total)
+    upto = 0
+    for et, w in zip(ENEMY_TYPES, weights):
+        if upto + w >= r:
+            return et
+        upto += w
+    return ENEMY_TYPES[0]
 
-# ENEMY_TYPES = [
-#     {
-#         "name": "Knight",
-#         "image": knight_enemy,
-#         "health": 250,
-#         "speed": 0.75,
-#         "reward": 50
-#     },
-#     {
-#         "name": "Hobbit",
-#         "image": hobbit_enemy,
-#         "health": 75,
-#         "speed": 5,
-#         "reward": 35
-#     },
-#     {
-#         "name": "Mage",
-#         "image": mage_enemy,
-#         "health": 175,
-#         "speed": 1.5,
-#         "reward": 45
-#     }
-# ]
+# Maximum number of towers allowed on the map
+MAX_TOWERS = 15
 
 tower_img_path = asset("lvl1TowerCannon.png")
 if tower_img_path:
@@ -241,15 +233,30 @@ def draw_barriers(win):
 #PUT IN SPRITES
 
 def save_game(filename, game_state):
-    """Save game state to JSON file."""
+    """Atomically save game state to JSON file (writes to a temp file and renames).
+    Keeps behavior identical (writes the provided dict) but avoids partial files.
+    Returns True on success, False on failure."""
     try:
         save_path = os.path.join(BASE_DIR, f"{filename}.json")
-        with open(save_path, 'w') as f:
+        tmp_path = save_path + ".tmp"
+        # write to a temporary file first
+        with open(tmp_path, 'w') as f:
             json.dump(game_state, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        # atomic replace
+        os.replace(tmp_path, save_path)
         return True
     except Exception as e:
-        print(f"Error saving game: {e}")
-        return False
+        print(f"Error saving game atomically: {e}")
+        try:
+            # fallback: try non-atomic write
+            with open(save_path, 'w') as f:
+                json.dump(game_state, f, indent=2)
+            return True
+        except Exception as e2:
+            print(f"Fallback save failed: {e2}")
+            return False
 
 def load_game(filename):
     """Load game state from JSON file."""
@@ -263,8 +270,77 @@ def load_game(filename):
         print(f"Error loading game: {e}")
         return None
 
-def pause_menu():
-    """Display pause menu and return user choice."""
+# Helper to update save file with slots and most_recent without overwriting other sections
+# This implements a simple, robust slot system used by the pause save UI and autosave.
+# Each slot stores a small metadata envelope {"timestamp": ..., "version": 1, "state": <game_state>}
+SAVE_VERSION = 1
+
+def write_save_slot(filename, slot_name, state):
+    try:
+        data = load_game(filename) or {}
+        if not isinstance(data, dict):
+            data = {}
+        # ensure version and slots structure
+        data.setdefault("version", SAVE_VERSION)
+        data.setdefault("slots", {})
+        envelope = {"timestamp": int(time.time() * 1000), "version": SAVE_VERSION, "state": state}
+        if slot_name == "most_recent":
+            data["most_recent"] = envelope
+        else:
+            data["slots"][slot_name] = envelope
+        return save_game(filename, data)
+    except Exception as e:
+        print(f"Error writing save slot: {e}")
+        return False
+
+# Write multiple numbered slots at once (slot_list is ordered list for save1..saveN)
+def write_save_slots_batch(filename, slot_list):
+    try:
+        data = load_game(filename) or {}
+        if not isinstance(data, dict):
+            data = {}
+        data.setdefault("version", SAVE_VERSION)
+        data.setdefault("slots", {})
+        for i, st in enumerate(slot_list, start=1):
+            if st is None:
+                data["slots"][f"save{i}"] = None
+            else:
+                data["slots"][f"save{i}"] = {"timestamp": int(time.time() * 1000), "version": SAVE_VERSION, "state": st}
+        return save_game(filename, data)
+    except Exception as e:
+        print(f"Error writing save slots batch: {e}")
+        return False
+
+class PauseButton:
+    """Simple on-screen pause button."""
+    def __init__(self, x, y, w=50, h=50):
+        self.rect = pygame.Rect(x, y, w, h)
+
+    def draw(self, win):
+        # Draw rounded button with || icon
+        pygame.draw.rect(win, (50, 50, 50), self.rect, border_radius=8)
+        pygame.draw.rect(win, (200, 180, 100), self.rect, 2, border_radius=8)
+        # draw pause icon
+        bar_w = 8
+        bar_h = self.rect.height - 16
+        left_bar = pygame.Rect(self.rect.x + 10, self.rect.y + 8, bar_w, bar_h)
+        right_bar = pygame.Rect(self.rect.x + self.rect.width - 10 - bar_w, self.rect.y + 8, bar_w, bar_h)
+        pygame.draw.rect(win, (220, 220, 220), left_bar)
+        pygame.draw.rect(win, (220, 220, 220), right_bar)
+
+    def is_clicked(self, pos):
+        return self.rect.collidepoint(pos)
+
+
+class PauseScreen:
+    """Wrapper class exposing a show() method to display pause UI and return a choice."""
+    @staticmethod
+    def show(money, killcount, difficulty_level, base_level):
+        return pause_menu(money, killcount, difficulty_level, base_level)
+
+
+def pause_menu(money, killcount, difficulty_level, base_level, elapsed_seconds=0):
+    """Display pause menu and return user choice. Shows current stats."""
     running = True
     resume_button = pygame.Rect(WIDTH//2 - 150, HEIGHT//2 - 80, 300, 50)
     save_button = pygame.Rect(WIDTH//2 - 150, HEIGHT//2, 300, 50)
@@ -283,7 +359,27 @@ def pause_menu():
         # Title
         pause_font = pygame.font.SysFont("Georgia", 60, bold=True)
         pause_text = pause_font.render("PAUSED", True, (220, 180, 100))
-        WIN.blit(pause_text, (WIDTH//2 - pause_text.get_width()//2, 100))
+        WIN.blit(pause_text, (WIDTH//2 - pause_text.get_width()//2, 60))
+        
+        # Stats display under title
+        stats_x = WIDTH//2 - 200
+        stats_y = 140
+        stat_label_color = (200, 180, 120)
+        STAT_BG = pygame.Rect(stats_x - 10, stats_y - 10, 420, 120)
+        pygame.draw.rect(WIN, (30, 30, 30), STAT_BG, border_radius=8)
+        money_text = STAT_FONT.render(f"Money: ${money}", True, WHITE)
+        kills_text = STAT_FONT.render(f"Kills: {killcount}", True, WHITE)
+        diff_text = STAT_FONT.render(f"Difficulty: {difficulty_level}", True, WHITE)
+        base_lvl_text = STAT_FONT.render(f"Base Level: {base_level}", True, WHITE)
+        WIN.blit(money_text, (stats_x, stats_y))
+        WIN.blit(kills_text, (stats_x + 210, stats_y))
+        WIN.blit(diff_text, (stats_x, stats_y + 40))
+        WIN.blit(base_lvl_text, (stats_x + 210, stats_y + 40))
+        # Timer in pause stats
+        mins = int(elapsed_seconds) // 60
+        secs = int(elapsed_seconds) % 60
+        timer_text = STAT_FONT.render(f"Time: {mins:02d}:{secs:02d}", True, WHITE)
+        WIN.blit(timer_text, (stats_x, stats_y + 80))
         
         mouse_pos = pygame.mouse.get_pos()
         
@@ -555,8 +651,19 @@ def main_menu():
                         menu_running = False
                     elif load_button.collidepoint(click_pos):
                         print("[DEBUG] load button hit", flush=True)
-                        saved_game_data = load_game("game_save")
-                        if saved_game_data:
+                        saved_file = load_game("game_save")
+                        if saved_file:
+                            # support both envelope (with 'most_recent') and raw state
+                            if isinstance(saved_file, dict):
+                                if "most_recent" in saved_file and isinstance(saved_file["most_recent"], dict):
+                                    saved_game_data = saved_file["most_recent"].get("state")
+                                elif "state" in saved_file:
+                                    saved_game_data = saved_file.get("state")
+                                else:
+                                    # assume it's raw state dict
+                                    saved_game_data = saved_file
+                            else:
+                                saved_game_data = saved_file
                             button_clicked = "load"
                             menu_running = False
                     elif quit_button.collidepoint(click_pos):
@@ -582,7 +689,7 @@ def main(saved_game=None):
     selected_tower_type = 1  # 1 = blue 2 = purple
     killcount = 0
     spawn_timer = 0
-    base_health = 2
+    base_health = 100
     money = 200
     TOWER_COST = 50
     base_range = 500
@@ -596,21 +703,178 @@ def main(saved_game=None):
     upgrade_mode = False
     paused = False
     game_speed = 1.0  # Speed multiplier (1.0 = normal, 2.0 = 2x faster)
-    
+    last_autosave = pygame.time.get_ticks()
+    save_history = []  # keep recent snapshots (timestamp_ms, game_state_dict)
+    elapsed_time_ms = 0  # game timer in milliseconds
+    prev_difficulty = 0
+
+    # Helpers to serialize game entities into JSON-friendly dicts
+    def serialize_enemies_list(enemies_list):
+        s = []
+        for e in enemies_list:
+            s.append({
+                "name": getattr(e, "name", None),
+                "x": int(e.x),
+                "y": int(e.y),
+                "health": e.health,
+                "frame_index": getattr(e, "frame_index", 0)
+            })
+        return s
+
+    def serialize_bullets_list(bullets_list, enemies_list):
+        s = []
+        for b in bullets_list:
+            target_index = enemies_list.index(b.target) if (b.target in enemies_list) else None
+            s.append({"x": int(b.x), "y": int(b.y), "damage": b.damage, "target_index": target_index})
+        return s
+
+    def make_game_state():
+        return {
+            "enemies": serialize_enemies_list(enemies),
+            "towers": [{"x": int(t.x), "y": int(t.y), "tower_type": int(t.tower_type), "level": int(t.level)} for t in towers],
+            "bullets": serialize_bullets_list(bullets, enemies),
+            "money": money,
+            "killcount": killcount,
+            "base_health": base_health,
+            "base_level": base_level,
+            "difficulty_level": killcount // 10,
+            "purchased_upgrades": {"base_level": base_level}
+        }
+
+    # Simple slot chooser UI
+    def save_slot_menu():
+        buttons = []
+        mw = 240
+        for i in range(7):
+            brect = pygame.Rect(WIDTH//2 - mw//2, 140 + i*70, mw, 50)
+            buttons.append(brect)
+        running_slot = True
+        while running_slot:
+            CLOCK.tick(FPS)
+            # dark overlay
+            overlay = pygame.Surface((WIDTH, HEIGHT))
+            overlay.set_alpha(220)
+            overlay.fill((0,0,0))
+            WIN.blit(overlay, (0,0))
+            title = BUTTON_FONT.render("Choose Save Slot", True, (220,180,100))
+            WIN.blit(title, (WIDTH//2 - title.get_width()//2, 60))
+            mouse_pos = pygame.mouse.get_pos()
+            labels = ["Most Recent"] + [f"Save {i}" for i in range(1,6)] + ["Cancel"]
+            for idx, rect in enumerate(buttons):
+                hover = rect.collidepoint(mouse_pos)
+                color = (100,170,100) if hover else (72,105,74)
+                if idx == 0:
+                    color = (80,120,200) if hover else (70,90,140)
+                pygame.draw.rect(WIN, (0,0,0), (rect.x+4, rect.y+4, rect.width, rect.height), border_radius=12)
+                pygame.draw.rect(WIN, color, rect, border_radius=12)
+                pygame.draw.rect(WIN, (200,180,100), rect, 3, border_radius=12)
+                text = BUTTON_FONT.render(labels[idx], True, WHITE)
+                WIN.blit(text, (rect.x + rect.width//2 - text.get_width()//2, rect.y + rect.height//2 - text.get_height()//2))
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    quit()
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if buttons[0].collidepoint(mouse_pos):
+                        return "most_recent"
+                    for i in range(1,6):
+                        if buttons[i].collidepoint(mouse_pos):
+                            return i
+                    if buttons[6].collidepoint(mouse_pos):
+                        return None
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        return None
+            pygame.display.update()
+
     # Load saved game if provided
     if saved_game:
         money = saved_game.get("money", 200)
         killcount = saved_game.get("killcount", 0)
-        base_health = saved_game.get("base_health", 2)
+        base_health = saved_game.get("base_health", 100)
         base_level = saved_game.get("base_level", 1)
+        # Reconstruct saved enemies
+        saved_enemies = saved_game.get("enemies", [])
+        for ed in saved_enemies:
+            try:
+                name = ed.get("name")
+                sx = ed.get("x", 0)
+                sy = ed.get("y", 0)
+                shealth = ed.get("health", 0)
+                sframe = ed.get("frame_index", 0)
+                # find matching enemy type dict
+                etype = None
+                for et in ENEMY_TYPES:
+                    if et.get("name") == name:
+                        etype = et
+                        break
+                if etype is None:
+                    etype = ENEMY_TYPES[0]
+                new_e = Enemy(WIDTH, HEIGHT, CENTER, [etype], 1, 1)
+                new_e.x = sx
+                new_e.y = sy
+                new_e.health = shealth
+                new_e.max_health = getattr(new_e, "max_health", new_e.health)
+                new_e.frame_index = sframe
+                if hasattr(new_e, "frames") and len(new_e.frames) > 0:
+                    new_e.image = new_e.frames[new_e.frame_index]
+                enemies.append(new_e)
+            except Exception as e:
+                print(f"Failed to load enemy: {e}")
+
+        # Reconstruct saved towers (position, type, level)
+        saved_towers = saved_game.get("towers", [])
+        for tdata in saved_towers:
+            try:
+                tx = tdata.get("x")
+                ty = tdata.get("y")
+                ttype = tdata.get("tower_type", 1)
+                tlevel = tdata.get("level", 1)
+                new_t = Tower(tx, ty, CENTER, tower_type=ttype, image=TOWER_IMAGES[0] if TOWER_IMAGES else None, bullet_image=FIREBALL_IMAGE)
+                # upgrade to saved level
+                while new_t.level < tlevel:
+                    new_t.upgrade()
+                # set image based on level if available
+                if new_t.level <= len(TOWER_IMAGES):
+                    new_t.image = TOWER_IMAGES[new_t.level - 1]
+                towers.append(new_t)
+            except Exception as e:
+                print(f"Failed to load tower: {e}")
+
+        # Reconstruct bullets (use indexes into the enemies list)
+        saved_bullets = saved_game.get("bullets", [])
+        for bdata in saved_bullets:
+            try:
+                bx = bdata.get("x")
+                by = bdata.get("y")
+                dmg = bdata.get("damage", 0)
+                tgt_idx = bdata.get("target_index")
+                if enemies and tgt_idx is not None and 0 <= tgt_idx < len(enemies):
+                    tgt = enemies[tgt_idx]
+                elif enemies:
+                    tgt = enemies[0]
+                else:
+                    tgt = None
+                if tgt:
+                    new_b = Bullet(bx, by, tgt, dmg, FIREBALL_IMAGE)
+                    new_b.x = bx
+                    new_b.y = by
+                    bullets.append(new_b)
+            except Exception as e:
+                print(f"Failed to load bullet: {e}")
     
-    button1_rect = pygame.Rect(150, 720, 150, 50)
-    upgrade_button_rect = pygame.Rect(325, 720, 150, 50)
-    button2_rect = pygame.Rect(500, 720, 150, 50)
-    speed_minus_button = pygame.Rect(WIDTH - 200, 10, 40, 40)
+    # UI buttons: move upgrade and tower buttons further left of speed controls for clarity
+    pause_button = PauseButton(WIDTH - 60, 10, 50, 50)
     speed_plus_button = pygame.Rect(WIDTH - 150, 10, 40, 40)
+    speed_minus_button = pygame.Rect(WIDTH - 190, 10, 40, 40)
+    upgrade_button_rect = pygame.Rect(WIDTH - 350, 10, 80, 40)
+    button1_rect = pygame.Rect(WIDTH - 430, 10, 80, 40)
+    button2_rect = pygame.Rect(WIDTH - 510, 10, 80, 40)
+    # Panel selection state for upgrade-side-panel
+    selected_panel_tower = None
     while running:
-        CLOCK.tick(int(FPS * game_speed))  # Apply speed multiplier
+        dt_ms = CLOCK.tick(int(FPS * game_speed))  # Apply speed multiplier and capture delta ms
+        elapsed_time_ms += dt_ms
         
         # --- CLEAR AND SETUP ---
         WIN.fill(GRASS1)
@@ -625,29 +889,29 @@ def main(saved_game=None):
                     paused = True
                     
             if paused:
-                pause_choice = pause_menu(money, killcount, difficulty_level, base_level)
+                pause_choice = pause_menu(money, killcount, difficulty_level, base_level, int(elapsed_time_ms//1000))
                 if pause_choice == "resume":
                     paused = False
                 elif pause_choice == "save":
-                    game_state = {
-                        "enemies": [],
-                        "towers": [],
-                        "bullets": [],
-                        "money": money,
-                        "killcount": killcount,
-                        "base_health": base_health,
-                        "base_level": base_level,
-                        "difficulty_level": killcount // 10
-                    }
-                    if save_game("game_save", game_state):
-                        error_message = "Game saved successfully!"
-                        error_timer = 120
-                    else:
-                        error_message = "Failed to save game!"
-                        error_timer = 120
+                    gs = make_game_state()
+                    write_save_slot("game_save", "most_recent", gs)
+                    error_message = "Game Saved!"
+                    error_timer = 120
                     paused = False
                 elif pause_choice == "home":
-                    return
+                    # Return to main menu and handle user's menu choice
+                    action, saved = main_menu()
+                    if action == "play":
+                        main()
+                        return
+                    elif action == "load" and saved:
+                        main(saved_game=saved)
+                        return
+                    elif action == "quit":
+                        pygame.quit()
+                        quit()
+                    else:
+                        return
                 elif pause_choice == "quit":
                     pygame.quit()
                     quit()
@@ -656,10 +920,44 @@ def main(saved_game=None):
                 dx = x - CENTER[0]
                 dy = y - CENTER[1]
                 distance = math.hypot(dx, dy)
-                return 75 < distance < 150
+                inner_base = 75
+                outer_base = 150
+                inner = int(inner_base * SIZE_SCALE)
+                # outer grows slightly with base upgrades
+                outer = int(outer_base * SIZE_SCALE + (base_level - 1) * 8)
+                return inner < distance < outer
             
             if event.type == pygame.MOUSEBUTTONDOWN and not paused:
                 x, y = pygame.mouse.get_pos()
+
+                # Pause button clicked -> show pause menu immediately
+                if pause_button.is_clicked((x, y)):
+                    pause_choice = pause_menu(money, killcount, difficulty_level, base_level, int(elapsed_time_ms//1000))
+                    if pause_choice == "resume":
+                        pass
+                    elif pause_choice == "save":
+                        gs = make_game_state()
+                        write_save_slot("game_save", "most_recent", gs)
+                        error_message = "Game Saved!"
+                        error_timer = 120
+                    elif pause_choice == "home":
+                        action, saved = main_menu()
+                        if action == "play":
+                            main()
+                            return
+                        elif action == "load" and saved:
+                            main(saved_game=saved)
+                            return
+                        elif action == "quit":
+                            pygame.quit()
+                            quit()
+                        else:
+                            return
+                    elif pause_choice == "quit":
+                        pygame.quit()
+                        quit()
+                    # consume the click
+                    continue
 
                 if button1_rect.collidepoint(x, y):
                     selected_tower_type = 1
@@ -671,6 +969,7 @@ def main(saved_game=None):
 
                 elif upgrade_button_rect.collidepoint(x, y):
                     upgrade_mode = not upgrade_mode
+                    selected_panel_tower = None
                 
                 elif speed_minus_button.collidepoint(x, y):
                     game_speed = max(0.5, game_speed - 0.25)
@@ -679,8 +978,54 @@ def main(saved_game=None):
                     game_speed = min(4.0, game_speed + 0.25)
 
                 elif upgrade_mode:
-                    # Handle upgrades in upgrade mode
-                    # Check if clicking on base
+                    # Upgrade side-panel rect
+                    panel_rect = pygame.Rect(WIDTH-220, 80, 210, HEIGHT-160)
+                    # If clicked inside the panel, handle selection or actions
+                    if panel_rect.collidepoint(x, y):
+                        # compute which tower entry was clicked
+                        rel_y = y - (panel_rect.y + 36)
+                        idx = rel_y // 56
+                        if 0 <= idx < len(towers):
+                            selected_panel_tower = idx
+                            # consume the click
+                            continue
+                        # if a tower is already selected, check action buttons
+                        if selected_panel_tower is not None and 0 <= selected_panel_tower < len(towers):
+                            upgrade_btn = pygame.Rect(panel_rect.x+10, panel_rect.y+panel_rect.height-120, panel_rect.width-20, 40)
+                            type1_btn = pygame.Rect(panel_rect.x+10, panel_rect.y+panel_rect.height-60, (panel_rect.width-30)//2, 40)
+                            type2_btn = pygame.Rect(panel_rect.x+20+(panel_rect.width-30)//2, panel_rect.y+panel_rect.height-60, (panel_rect.width-30)//2, 40)
+                            if upgrade_btn.collidepoint(x, y):
+                                tower = towers[selected_panel_tower]
+                                upgrade_cost = tower.level * 75
+                                if money >= upgrade_cost and tower.level < 3:
+                                    money -= upgrade_cost
+                                    tower.upgrade()
+                                    if tower.level <= len(TOWER_IMAGES):
+                                        tower.image = TOWER_IMAGES[tower.level - 1]
+                                    error_message = f"Tower upgraded to level {tower.level}!"
+                                    error_timer = 60
+                                elif tower.level >= 3:
+                                    error_message = "Tower is at maximum level!"
+                                    error_timer = 60
+                                else:
+                                    error_message = f"Need ${upgrade_cost} to upgrade tower!"
+                                    error_timer = 60
+                                continue
+                            elif type1_btn.collidepoint(x, y) or type2_btn.collidepoint(x, y):
+                                tower = towers[selected_panel_tower]
+                                if type1_btn.collidepoint(x, y):
+                                    tower.tower_type = 1
+                                else:
+                                    tower.tower_type = 2
+                                if tower.level <= len(TOWER_IMAGES):
+                                    tower.image = TOWER_IMAGES[tower.level - 1]
+                                error_message = f"Tower type set to {tower.tower_type}"
+                                error_timer = 60
+                                continue
+                        # clicked inside panel but not on actionable areas
+                        continue
+                    # If click was not in panel, fall back to map-based upgrade (legacy behavior)
+                    # Handle upgrades in upgrade mode (map click)
                     base_distance = math.hypot(x - CENTER[0], y - CENTER[1])
                     if base_distance <= BASE_RADIUS:
                         base_upgrade_cost = base_level * 100  # Increasing cost per level
@@ -699,12 +1044,10 @@ def main(saved_game=None):
                         else:
                             error_message = f"Need ${base_upgrade_cost} to upgrade base!"
                             error_timer = 60
-                    
-                    # Check if clicking on a tower
                     else:
                         for tower in towers:
                             tower_distance = math.hypot(x - tower.x, y - tower.y)
-                            if tower_distance <= 40:  # Click radius for towers
+                            if tower_distance <= max(8, int(40 * SIZE_SCALE)):  # Click radius for towers scaled
                                 upgrade_cost = tower.level * 75  # Increasing cost per level
                                 if money >= upgrade_cost and tower.level < 3:
                                     money -= upgrade_cost
@@ -723,28 +1066,37 @@ def main(saved_game=None):
                                 break
 
                 elif can_place_tower(x, y) and not upgrade_mode:
-                    temp_tower = Tower(x, y, CENTER, tower_type=selected_tower_type, image=TOWER_IMAGES[0] if TOWER_IMAGES else None, bullet_image=FIREBALL_IMAGE)
-
-                    if money >= temp_tower.cost:
-                        towers.append(temp_tower)
-                        money -= temp_tower.cost
-                        error_message = f"Tower placed!"
-                        error_timer = 60
+                    if len(towers) >= MAX_TOWERS:
+                        error_message = f"Tower limit reached ({MAX_TOWERS})"
+                        error_timer = 90
                     else:
-                        error_message = "Not Enough Money!"
-                        error_timer = 60
+                        temp_tower = Tower(x, y, CENTER, tower_type=selected_tower_type, image=TOWER_IMAGES[0] if TOWER_IMAGES else None, bullet_image=FIREBALL_IMAGE)
+
+                        if money >= temp_tower.cost:
+                            towers.append(temp_tower)
+                            money -= temp_tower.cost
+                            error_message = f"Tower placed!"
+                            error_timer = 60
+                        else:
+                            error_message = "Not Enough Money!"
+                            error_timer = 60
 
         # --- GAME LOGIC (only if not paused) ---
         if not paused:
             # Spawn enemies
-            difficulty_level = killcount // 10
-            multiplier = 1 + (difficulty_level * 0.05)
-            spawn_interval = max(90 - difficulty_level * 5, 15)
+            # Difficulty scales with kills and elapsed time (every 30s increases difficulty)
+            difficulty_level = killcount // 10 + int(elapsed_time_ms // 30000)
+            if difficulty_level > prev_difficulty:
+                error_message = f"Difficulty increased to {difficulty_level}!"
+                error_timer = 180
+                prev_difficulty = difficulty_level
+            multiplier = 1 + (difficulty_level * 0.08)
+            spawn_interval = max(90 - difficulty_level * 7, 10)
 
             if not upgrade_mode:
                 spawn_timer += 1
                 if spawn_timer > spawn_interval:
-                    enemy_type = random.choice(ENEMY_TYPES)
+                    enemy_type = choose_enemy_type(difficulty_level)
                     enemies.append(
                         Enemy(WIDTH, HEIGHT, CENTER, [enemy_type], multiplier, multiplier)
                     )
@@ -764,7 +1116,7 @@ def main(saved_game=None):
                             closest_enemy = enemy
 
                     if closest_enemy:
-                        eye_base_offset = 21 + (base_level - 1) * 8
+                        eye_base_offset = int(21 * SIZE_SCALE) + (base_level - 1) * 8
                         spawn_y = CENTER[1] - eye_base_offset
                         bullets.append(
                             Bullet(
@@ -800,12 +1152,17 @@ def main(saved_game=None):
 
         # --- DRAWING SECTION ---
         # Draw decorative circles and base defense zones
-        pygame.draw.circle(WIN, (180, 180, 180), CENTER, 150, 2)
-        pygame.draw.circle(WIN, (180, 180, 180), CENTER, 75, 2)
-        
+        # Draw placement rings (scaled) - inner and outer radii grow with base upgrades
+        inner_base = 75
+        outer_base = 150
+        inner_radius = int(inner_base * SIZE_SCALE)
+        outer_radius = int(outer_base * SIZE_SCALE + (base_level - 1) * 8)
+        pygame.draw.circle(WIN, (180, 180, 180), CENTER, outer_radius, 2)
+        pygame.draw.circle(WIN, (180, 180, 180), CENTER, inner_radius, 2)
+
         # Draw Base
         current_base_image = BASE_IMAGES[min(base_level - 1, len(BASE_IMAGES) - 1)]
-        base_rect = current_base_image.get_rect(center=(CENTER[0], CENTER[1] - 40))
+        base_rect = current_base_image.get_rect(center=(CENTER[0], CENTER[1] - int(40 * SIZE_SCALE)))
         WIN.blit(current_base_image, base_rect)
 
         # Draw Enemies
@@ -813,16 +1170,25 @@ def main(saved_game=None):
             enemy.draw(WIN)
 
         # Draw Towers
-        for tower in towers:
+        for idx, tower in enumerate(towers):
             tower.draw(WIN)
             if upgrade_mode:
-                # Show tower level and upgrade cost
+                # Show tower level (dark text with light background for readability)
                 level_text = FONT.render(f"Lv.{tower.level}", True, (0, 0, 0))
-                WIN.blit(level_text, (tower.x - 15, tower.y - 50))
-                
-                if tower.level < 3:
-                    cost_text = FONT.render(f"${tower.level * 75}", True, (255, 0, 0))
-                    WIN.blit(cost_text, (tower.x - 15, tower.y + 40))
+                level_bg = pygame.Rect(tower.x - 22, tower.y - 58, 44, 20)
+                pygame.draw.rect(WIN, (240,240,240), level_bg, border_radius=4)
+                WIN.blit(level_text, (level_bg.x + level_bg.width//2 - level_text.get_width()//2, level_bg.y + level_bg.height//2 - level_text.get_height()//2))
+                # Show tower index number inside a small dark circle for contrast
+                try:
+                    idx_str = str(idx+1)
+                    idx_surf = UPGRADE_FONT.render(idx_str, True, WHITE)
+                    circle_x = tower.x + int(20 * SIZE_SCALE)
+                    circle_y = tower.y - 40
+                    circle_r = max(10, int(12 * SIZE_SCALE))
+                    pygame.draw.circle(WIN, (30, 30, 30), (circle_x, circle_y), circle_r)
+                    WIN.blit(idx_surf, (circle_x - idx_surf.get_width()//2, circle_y - idx_surf.get_height()//2))
+                except Exception:
+                    pass
 
         # Draw Bullets
         for bullet in bullets:
@@ -835,7 +1201,7 @@ def main(saved_game=None):
         # Corner data display
         money_text = STAT_FONT.render(f"Money: ${money}", True, BLACK)
         WIN.blit(money_text, (10, 10))
-        health_text = STAT_FONT.render(f"Health: {base_health}", True, BLACK)
+        health_text = STAT_FONT.render(f"Health: {base_health}%", True, BLACK)
         WIN.blit(health_text, (10, 40))
         kill_count_text = STAT_FONT.render(f"Kills: {killcount}", True, BLACK)
         WIN.blit(kill_count_text, (10, 70))
@@ -843,6 +1209,12 @@ def main(saved_game=None):
         WIN.blit(difficulty_text, (10, 100))
         base_level_text = STAT_FONT.render(f"Base Level: {base_level}", True, BLACK)
         WIN.blit(base_level_text, (10, 130))
+        # Game Timer (mm:ss)
+        elapsed_seconds = int(elapsed_time_ms // 1000)
+        mins = elapsed_seconds // 60
+        secs = elapsed_seconds % 60
+        timer_text = STAT_FONT.render(f"Time: {mins:02d}:{secs:02d}", True, BLACK)
+        WIN.blit(timer_text, (10, 160))
         
         # Draw Speed Control
         pygame.draw.rect(WIN, (100, 100, 100), speed_minus_button)
@@ -854,6 +1226,12 @@ def main(saved_game=None):
         pygame.draw.rect(WIN, (150, 150, 150), speed_plus_button, 2)
         plus_text = FONT.render("+", True, WHITE)
         WIN.blit(plus_text, (speed_plus_button.x + 10, speed_plus_button.y + 5))
+
+        # Draw on-screen pause button
+        try:
+            pause_button.draw(WIN)
+        except Exception:
+            pass
         
         speed_display = FONT.render(f"Speed: {game_speed:.2f}x", True, BLACK)
         WIN.blit(speed_display, (WIDTH - 200, 55))
@@ -876,34 +1254,93 @@ def main(saved_game=None):
         text2 = FONT.render("Tower 2", True, WHITE)
         upgrade_text = FONT.render("Upgrade", True, BLACK)
 
-        WIN.blit(text1, (button1_rect.x + 25, button1_rect.y + 10))
-        WIN.blit(text2, (button2_rect.x + 25, button2_rect.y + 10))
-        WIN.blit(upgrade_text, (upgrade_button_rect.x + 25, upgrade_button_rect.y + 10))
+        # center text inside buttons for better readability
+        WIN.blit(text1, (button1_rect.x + button1_rect.width//2 - text1.get_width()//2, button1_rect.y + button1_rect.height//2 - text1.get_height()//2))
+        WIN.blit(text2, (button2_rect.x + button2_rect.width//2 - text2.get_width()//2, button2_rect.y + button2_rect.height//2 - text2.get_height()//2))
+        WIN.blit(upgrade_text, (upgrade_button_rect.x + upgrade_button_rect.width//2 - upgrade_text.get_width()//2, upgrade_button_rect.y + upgrade_button_rect.height//2 - upgrade_text.get_height()//2))
 
         # Error/Status messages
         if error_timer > 0:
-            error_surf = FONT.render(error_message, True, RED)
+            error_surf = FONT.render(error_message, True, (100, 100, 255))
             WIN.blit(error_surf, (WIDTH // 2 - error_surf.get_width() // 2, 50))
             error_timer -= 1
 
         if upgrade_mode:
-            upgrade_instructions = UPGRADE_FONT.render("UPGRADE MODE: Click towers or base to upgrade", True, (255, 100, 100))
-            WIN.blit(upgrade_instructions, (WIDTH // 2 - upgrade_instructions.get_width() // 2, 10))
+            upgrade_instructions = UPGRADE_FONT.render("UPGRADE MODE: Use panel to the right or click map", True, (255, 100, 100))
+            WIN.blit(upgrade_instructions, (WIDTH // 2 - upgrade_instructions.get_width() // 2 - 20, 10))
             
             if base_level < 6:
                 base_upgrade_cost = base_level * 100
                 base_cost_text = UPGRADE_FONT.render(f"Base Upgrade: ${base_upgrade_cost}", True, (100, 100, 255))
-                WIN.blit(base_cost_text, (WIDTH // 2 - base_cost_text.get_width() // 2, 35))
+                WIN.blit(base_cost_text, (WIDTH // 2 - base_cost_text.get_width() // 2 - 20, 35))
             else:
                 base_max_text = UPGRADE_FONT.render("Base at MAX LEVEL", True, (100, 100, 255))
-                WIN.blit(base_max_text, (WIDTH // 2 - base_max_text.get_width() // 2, 35))
+                WIN.blit(base_max_text, (WIDTH // 2 - base_max_text.get_width() // 2 - 20, 35))
             
             # Show base level in upgrade mode
             base_level_upgrade_display = UPGRADE_FONT.render(f"Base Lv.{base_level}", True, (0, 0, 0))
-            WIN.blit(base_level_upgrade_display, (CENTER[0] - 40, CENTER[1] - 80))
+            WIN.blit(base_level_upgrade_display, (CENTER[0] - int(40 * SIZE_SCALE), CENTER[1] - int(80 * SIZE_SCALE)))
+
+            # Draw right-side upgrade panel
+            panel_rect = pygame.Rect(WIDTH-220, 80, 210, HEIGHT-160)
+            pygame.draw.rect(WIN, (40,40,40), panel_rect)
+            pygame.draw.rect(WIN, (200,180,100), panel_rect, 2)
+            title = UPGRADE_FONT.render("Towers", True, (220,180,100))
+            WIN.blit(title, (panel_rect.x + 10, panel_rect.y + 6))
+            panel_y = panel_rect.y + 36
+            panel_entry_h = 56
+            for idx, tower in enumerate(towers):
+                entry_rect = pygame.Rect(panel_rect.x + 10, panel_y + idx*panel_entry_h, panel_rect.width - 20, 50)
+                color = (70,70,70) if selected_panel_tower != idx else (100,120,160)
+                pygame.draw.rect(WIN, color, entry_rect)
+                pygame.draw.rect(WIN, (200,180,100), entry_rect, 2)
+                # draw small tower image
+                try:
+                    mini = pygame.transform.scale(tower.image, (40,40))
+                    WIN.blit(mini, (entry_rect.x + 6, entry_rect.y + 5))
+                except Exception:
+                    pass
+                txt = UPGRADE_FONT.render(f"{idx+1}. Lv{tower.level} Type{tower.tower_type}", True, WHITE)
+                WIN.blit(txt, (entry_rect.x + 54, entry_rect.y + 12))
+            # Action buttons when a tower is selected
+            if selected_panel_tower is not None and 0 <= selected_panel_tower < len(towers):
+                upgrade_btn = pygame.Rect(panel_rect.x+10, panel_rect.y+panel_rect.height-120, panel_rect.width-20, 40)
+                type1_btn = pygame.Rect(panel_rect.x+10, panel_rect.y+panel_rect.height-60, (panel_rect.width-30)//2, 40)
+                type2_btn = pygame.Rect(panel_rect.x+20+(panel_rect.width-30)//2, panel_rect.y+panel_rect.height-60, (panel_rect.width-30)//2, 40)
+                pygame.draw.rect(WIN, (100,170,100), upgrade_btn)
+                pygame.draw.rect(WIN, (150,150,150), type1_btn)
+                pygame.draw.rect(WIN, (150,150,150), type2_btn)
+                pygame.draw.rect(WIN, (200,180,100), upgrade_btn, 2)
+                pygame.draw.rect(WIN, (200,180,100), type1_btn, 2)
+                pygame.draw.rect(WIN, (200,180,100), type2_btn, 2)
+                up_txt = UPGRADE_FONT.render("Upgrade Level", True, WHITE)
+                t1_txt = UPGRADE_FONT.render("Type 1", True, WHITE)
+                t2_txt = UPGRADE_FONT.render("Type 2", True, WHITE)
+                WIN.blit(up_txt, (upgrade_btn.x + upgrade_btn.width//2 - up_txt.get_width()//2, upgrade_btn.y + 8))
+                WIN.blit(t1_txt, (type1_btn.x + type1_btn.width//2 - t1_txt.get_width()//2, type1_btn.y + 8))
+                WIN.blit(t2_txt, (type2_btn.x + type2_btn.width//2 - t2_txt.get_width()//2, type2_btn.y + 8))
         
         # Check for Game Over
         if base_health <= 0:
+            # On death: attempt to restore/save the snapshot from 4 seconds before death
+            death_time = pygame.time.get_ticks()
+            target_time = death_time - 4000
+            chosen_snapshot = None
+            # iterate from newest to oldest and pick the latest snapshot <= target_time
+            for ts, gs in reversed(save_history):
+                if ts <= target_time:
+                    chosen_snapshot = gs
+                    break
+            # fallback to earliest snapshot if none found
+            if chosen_snapshot is None and save_history:
+                chosen_snapshot = save_history[0][1]
+            # write chosen snapshot to disk so the saved file reflects -4s state
+            if chosen_snapshot is not None:
+                try:
+                    save_game("game_save", chosen_snapshot)
+                except Exception:
+                    pass
+
             result = game_over_screen(killcount, money, difficulty_level, base_level)
             if result == "play_again":
                 main()  # Restart game
@@ -925,6 +1362,25 @@ def main(saved_game=None):
             else:
                 return
         
+        # Autosave every 500 milliseconds
+        current_time = pygame.time.get_ticks()
+        if current_time - last_autosave >= 500:
+            game_state = make_game_state()
+            # add snapshot to history
+            try:
+                save_history.append((current_time, game_state))
+                # prune old snapshots older than 10 seconds
+                cutoff = current_time - 10000
+                save_history[:] = [(ts,gs) for (ts,gs) in save_history if ts >= cutoff]
+            except Exception:
+                pass
+            # best-effort save to disk
+            try:
+                save_game("game_save", game_state)
+            except Exception as _:
+                pass
+            last_autosave = current_time
+
         pygame.display.update()
 
 def main_menu_launcher():
@@ -941,4 +1397,6 @@ def main_menu_launcher():
 # entry point when run as a script
 if __name__ == "__main__":
     main_menu_launcher()
-    
+
+
+        
